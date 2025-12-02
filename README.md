@@ -16,6 +16,9 @@
     <a href="https://ec.europa.eu/taxation_customs/vies/">
       <img src="https://img.shields.io/badge/API-EU%20VIES-003399?style=for-the-badge&logo=europe&logoColor=white" alt="EU VIES">
     </a>
+     <a href="https://nominatim.org/">
+      <img src="https://img.shields.io/badge/Maps-Nominatim-green?style=for-the-badge&logo=openstreetmap&logoColor=white" alt="OpenStreetMap">
+    </a>
   </p>
 
   <br />
@@ -27,13 +30,20 @@
 
 This application combines a beautiful **Glass/Dark Mode UI** with powerful automation tools.
 
-* **🎨 Modern UI:** Built with `CustomTkinter` for a sleek, dark-themed, high-DPI interface.
-* **🔍 Auto-Fill Client Data:** Connected directly to the **EU VIES Database**. Enter a VAT number (e.g., `BE0894524595`), and it instantly fetches the company name and address.
-* **⚡ Live Calculations:** * Input quantity (Kg) and watch totals update instantly.
-    * **Adjustable VAT:** Defaults to 6% (Food/Chocolate) but can be modified for other goods.
-* **📄 PDF Generation:** Generates professional invoices that exactly match the company's stationery requirements using `FPDF`.
-* **💾 Local Database:** All invoices are saved to a local `SQLite` database. You never lose track of a past invoice.
-* **📂 File Manager:** View history and open PDFs directly from the app dashboard.
+### 🧠 Smart Data Entry
+* **🔍 VIES Integration:** Enter a VAT number (e.g., `BE0894524595`) to auto-fill the client's name and address using the EU database.
+* **🗺️ Address Autocomplete:** Powered by **OpenStreetMap (Nominatim)**. Type a partial street name and let the app find the correct Street, Zip Code, and City.
+* **📅 Date Picker:** Select invoice dates via a popup calendar or default to today.
+
+### ⚡ Flexible Pricing & Calculations
+* **⚖️ Weight vs. Fixed Price:** Switch between **Price per Kg** (default) or **Manual Price Override** (for services/fixed sets).
+* **📝 Product Customization:** Rename "CHOCOLATES" to "PRALINES", "SERVICE", or any other custom text.
+* **🔢 Dynamic IDs:** Auto-incrementing invoice numbers with the ability to manually override/backdate if needed.
+
+### 📄 Professional Output
+* **🖨️ Dynamic PDF Generation:** The invoice table automatically adapts columns based on the mode (hides "Quantity" column for fixed-price items).
+* **💾 Database History:** Every invoice is saved to a local `SQLite` database.
+* **❌ Management:** View history, open PDFs instantly, or delete incorrect entries directly from the interface.
 
 ## 📸 Screenshots
 
@@ -42,10 +52,11 @@ This application combines a beautiful **Glass/Dark Mode UI** with powerful autom
 ## 🛠️ Tech Stack
 
 * **Language:** Python 3
-* **GUI Framework:** [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter) (Wrapper for Tkinter)
+* **GUI Framework:** [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter)
 * **PDF Engine:** FPDF
+* **Date Picker:** tkcalendar
 * **Database:** SQLite3
-* **Network:** Requests (for VIES API)
+* **APIs:** EU VIES (Tax) & Nominatim (Maps)
 
 ## 🚀 Installation & Usage
 
@@ -59,7 +70,7 @@ This application combines a beautiful **Glass/Dark Mode UI** with powerful autom
 
 2.  **Install dependencies:**
     ```bash
-    pip install customtkinter fpdf requests
+    pip install customtkinter fpdf requests tkcalendar babel
     ```
 
 3.  **Run the app:**
@@ -67,9 +78,18 @@ This application combines a beautiful **Glass/Dark Mode UI** with powerful autom
     python chocolate_invoice_modern.py
     ```
 
+### Option 2: Run as Executable (Windows)
+
+No Python installed? No problem.
+1.  Go to the **Releases** page.
+2.  Download `chocolate_invoice.exe`.
+3.  Double-click to run.
+
+---
+
 ## 🏗️ Building the EXE
 
-If you want to compile this yourself using **PyInstaller**, run the following command to ensure all UI assets are bundled correctly:
+If you want to compile this yourself using **PyInstaller**, you must use the following command to ensure all UI and Calendar assets are bundled correctly:
 
 ```bash
-pyinstaller --noconsole --onefile --collect-all customtkinter chocolate_invoice_modern.py
+python -m PyInstaller --noconsole --onefile --collect-all customtkinter --collect-all tkcalendar --collect-all babel chocolate_invoice.py
