@@ -30,7 +30,7 @@ class ModernInvoiceApp(ctk.CTk):
 
         # Window Setup
         self.title("LCHOCOLAT Invoice Manager")
-        self.geometry("1100x950") 
+        self.geometry("1150x950") 
         self.resizable(False, False)
 
         self.init_db()
@@ -168,9 +168,21 @@ class ModernInvoiceApp(ctk.CTk):
         self.lbl_total = ctk.CTkLabel(self.info_frame, text="TOTAL: 0.00 €", font=ctk.CTkFont(size=24, weight="bold"), text_color="#2CC985")
         self.lbl_total.pack(anchor="w", padx=20, pady=(5, 10))
 
-        # History
-        self.history_label = ctk.CTkLabel(self.main_frame, text="Invoice History", font=ctk.CTkFont(size=16, weight="bold"))
-        self.history_label.pack(anchor="w", pady=(0, 5))
+        # --- HISTORY HEADER WITH SORTING (NEW) ---
+        self.history_header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        self.history_header_frame.pack(fill="x", pady=(0, 5))
+
+        self.history_label = ctk.CTkLabel(self.history_header_frame, text="Invoice History", font=ctk.CTkFont(size=16, weight="bold"))
+        self.history_label.pack(side="left", anchor="w")
+
+        # Sorting Dropdown
+        self.sort_var = ctk.StringVar(value="Status (Unpaid First)")
+        self.combo_sort = ctk.CTkOptionMenu(self.history_header_frame,
+                                            values=["Status (Unpaid First)", "ID: Newest First", "ID: Oldest First"],
+                                            command=self.load_history_event,
+                                            variable=self.sort_var,
+                                            width=170)
+        self.combo_sort.pack(side="right", anchor="e")
 
         self.scroll_frame = ctk.CTkScrollableFrame(self.main_frame, label_text="Database")
         self.scroll_frame.pack(fill="both", expand=True)
@@ -187,8 +199,14 @@ class ModernInvoiceApp(ctk.CTk):
     def init_db(self):
         self.conn = sqlite3.connect('factures_db.sqlite')
         self.c = self.conn.cursor()
+        
         self.c.execute('''CREATE TABLE IF NOT EXISTS factures
-                          (id INTEGER PRIMARY KEY, date TEXT, client TEXT, vat TEXT, qty REAL, total REAL, filename TEXT)''')
+                          (id INTEGER PRIMARY KEY, date TEXT, client TEXT, vat TEXT, qty REAL, total REAL, filename TEXT, paid INTEGER DEFAULT 0)''')
+        try:
+            self.c.execute("ALTER TABLE factures ADD COLUMN paid INTEGER DEFAULT 0")
+            self.conn.commit()
+        except sqlite3.OperationalError:
+            pass
         self.conn.commit()
 
     def set_next_invoice_number(self):
@@ -367,14 +385,12 @@ class ModernInvoiceApp(ctk.CTk):
                 qty_val = float(self.entry_qty.get())
             except: qty_val = 0
             unit_price_val = STANDARD_PRICE_PER_KG
-            # Formatted text for columns
             qty_str = f"{qty_val:.3f} kg"
             unit_price_str = f"{unit_price_val:.2f}"
         else:
             qty_val = 1.0 # DB filler
             unit_price_val = total
-            # Formatted text
-            qty_str = "" # Not used in fixed mode
+            qty_str = ""
             unit_price_str = f"{total:.2f}"
 
         selected_date = self.entry_date.get()
@@ -383,16 +399,16 @@ class ModernInvoiceApp(ctk.CTk):
         invoice_num_str = f"{custom_id}-{selected_date}"
         filename = f"Facture_{custom_id}_{selected_date}.pdf"
 
-        # Check DB
+        # --- DUPLICATE CHECK & DB INSERT ---
         try:
-            self.c.execute("INSERT INTO factures (id, date, client, vat, qty, total, filename) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            self.c.execute("INSERT INTO factures (id, date, client, vat, qty, total, filename, paid) VALUES (?, ?, ?, ?, ?, ?, ?, 0)",
                            (custom_id, selected_date, client_name, client_vat, qty_val, total, filename))
             self.conn.commit()
         except sqlite3.IntegrityError:
-            messagebox.showerror("Error", f"Invoice #{custom_id} already exists!")
+            messagebox.showerror("Duplicate Error", f"Facture #{custom_id} ALREADY EXISTS.\n\nYou cannot create two invoices with the same number.\nPlease change the ID.")
             return
 
-        # PDF
+        # --- PDF GENERATION ---
         pdf = FPDF()
         pdf.add_page()
         
@@ -426,7 +442,7 @@ class ModernInvoiceApp(ctk.CTk):
         pdf.set_font("Arial", "B", 10)
 
         if is_weight_mode:
-            # 6 Columns (Product, Qty, Price, Base, Vat, Total)
+            # 6 Columns
             pdf.cell(40, 10, "PRODUIT / SERVICE", 1)
             pdf.cell(30, 10, "Quantite", 1)
             pdf.cell(30, 10, "PRIX/UNIT", 1)
@@ -437,7 +453,7 @@ class ModernInvoiceApp(ctk.CTk):
 
             pdf.set_font("Arial", "", 10)
             pdf.cell(40, 10, prod_name.upper(), 1)
-            pdf.cell(30, 10, qty_str, 1) # Shows "5.000 kg"
+            pdf.cell(30, 10, qty_str, 1) 
             pdf.cell(30, 10, unit_price_str, 1)
             pdf.cell(30, 10, f"{base:.2f}", 1)
             pdf.cell(20, 10, f"{vat:.2f}", 1)
@@ -445,8 +461,8 @@ class ModernInvoiceApp(ctk.CTk):
             pdf.ln()
 
         else:
-            # 5 Columns (Product is wider, NO Quantity Column)
-            pdf.cell(70, 10, "PRODUIT / SERVICE", 1) # 40 + 30 = 70
+            # 5 Columns
+            pdf.cell(70, 10, "PRODUIT / SERVICE", 1)
             pdf.cell(30, 10, "PRIX/UNIT", 1)
             pdf.cell(30, 10, "Base", 1)
             pdf.cell(20, 10, f"TVA {tva_rate}%", 1)
@@ -455,7 +471,6 @@ class ModernInvoiceApp(ctk.CTk):
 
             pdf.set_font("Arial", "", 10)
             pdf.cell(70, 10, prod_name.upper(), 1)
-            # Skip qty cell
             pdf.cell(30, 10, unit_price_str, 1)
             pdf.cell(30, 10, f"{base:.2f}", 1)
             pdf.cell(20, 10, f"{vat:.2f}", 1)
@@ -490,29 +505,67 @@ class ModernInvoiceApp(ctk.CTk):
             self.load_history()
             self.set_next_invoice_number()
 
+    def toggle_paid(self, inv_id, current_status):
+        new_status = 1 if current_status == 0 else 0
+        self.c.execute("UPDATE factures SET paid=? WHERE id=?", (new_status, inv_id))
+        self.conn.commit()
+        self.load_history()
+
+    def load_history_event(self, selection):
+        self.load_history()
+
     def load_history(self):
         for widget in self.scroll_frame.winfo_children():
             widget.destroy()
 
-        self.c.execute("SELECT id, date, client, total, filename FROM factures ORDER BY id DESC")
+        # SORTING LOGIC
+        sort_mode = self.sort_var.get()
+        if sort_mode == "Status (Unpaid First)":
+            # Paid = 0 (Unpaid) or 1 (Paid). ASC puts 0 first.
+            query = "SELECT id, date, client, total, filename, paid FROM factures ORDER BY paid ASC, id DESC"
+        elif sort_mode == "ID: Newest First":
+            query = "SELECT id, date, client, total, filename, paid FROM factures ORDER BY id DESC"
+        elif sort_mode == "ID: Oldest First":
+            query = "SELECT id, date, client, total, filename, paid FROM factures ORDER BY id ASC"
+        else:
+            query = "SELECT id, date, client, total, filename, paid FROM factures ORDER BY id DESC"
+
+        self.c.execute(query)
         rows = self.c.fetchall()
 
         for row in rows:
             card = ctk.CTkFrame(self.scroll_frame)
             card.pack(fill="x", pady=5, padx=5)
             
+            invoice_id = row[0]
+            is_paid = row[5] # 0 or 1
+            
+            # Left Info
             info_text = f"#{row[0]} | {row[1]}\n{row[2]}"
             lbl_info = ctk.CTkLabel(card, text=info_text, anchor="w", justify="left")
             lbl_info.pack(side="left", padx=10, pady=5)
             
+            # Right Side Buttons
+            
+            # 1. Delete
             btn_del = ctk.CTkButton(card, text="✕", width=30, fg_color="#FF5555", hover_color="#CC0000",
-                                    command=lambda r=row[0]: self.delete_invoice(r))
+                                    command=lambda r=invoice_id: self.delete_invoice(r))
             btn_del.pack(side="right", padx=(5, 10))
 
+            # 2. Open PDF
             btn_open = ctk.CTkButton(card, text="Open PDF", width=80, 
                                      command=lambda f=row[4]: self.open_pdf(f))
             btn_open.pack(side="right", padx=5)
+            
+            # 3. Paid Toggle
+            paid_text = "✅ Paid" if is_paid else "⏳ Pending"
+            paid_color = "#2CC985" if is_paid else "#555555" # Green vs Gray
+            
+            btn_paid = ctk.CTkButton(card, text=paid_text, width=80, fg_color=paid_color,
+                                     command=lambda r=invoice_id, s=is_paid: self.toggle_paid(r, s))
+            btn_paid.pack(side="right", padx=5)
 
+            # Price
             lbl_price = ctk.CTkLabel(card, text=f"{row[3]:.2f} €", font=ctk.CTkFont(weight="bold"))
             lbl_price.pack(side="right", padx=10)
 
