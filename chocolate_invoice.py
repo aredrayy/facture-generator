@@ -31,9 +31,7 @@ class ModernInvoiceApp(ctk.CTk):
         # Window Setup
         self.title("LCHOCOLAT Invoice Manager")
         self.resizable(True, True) 
-        
-        # Center the window on launch
-        self.center_window(1050, 700)
+        self.center_window(1050, 750) # Slightly taller for new fields
 
         self.init_db()
 
@@ -44,7 +42,7 @@ class ModernInvoiceApp(ctk.CTk):
         # --- LEFT SIDEBAR (Inputs) ---
         self.sidebar_frame = ctk.CTkFrame(self, width=320, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
-        self.sidebar_frame.grid_rowconfigure(22, weight=1)
+        self.sidebar_frame.grid_rowconfigure(25, weight=1)
 
         # Logo
         self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="LCHOCOLAT\nMANAGER", font=ctk.CTkFont(size=20, weight="bold"))
@@ -71,26 +69,35 @@ class ModernInvoiceApp(ctk.CTk):
         self.btn_calendar = ctk.CTkButton(self.date_frame, text="📅", width=40, height=28, command=self.open_calendar_popup)
         self.btn_calendar.pack(side="right", padx=(5, 0))
 
-        # 2. Client Lookup
+        # 2. Client Section Header
         self.lbl_client = ctk.CTkLabel(self.sidebar_frame, text="Client Details", anchor="w")
         self.lbl_client.grid(row=5, column=0, padx=20, pady=(10, 0), sticky="w")
 
+        # --- NEW: SAVED CLIENTS DROPDOWN ---
+        self.client_select_var = ctk.StringVar(value="Select Saved Client...")
+        self.combo_clients = ctk.CTkOptionMenu(self.sidebar_frame, variable=self.client_select_var,
+                                               values=["Select Saved Client..."],
+                                               command=self.on_client_select,
+                                               height=28)
+        self.combo_clients.grid(row=6, column=0, padx=20, pady=(2, 5), sticky="ew")
+
+        # Client Inputs
         self.entry_vat = ctk.CTkEntry(self.sidebar_frame, placeholder_text="VAT (e.g. BE0894524595)", height=28)
-        self.entry_vat.grid(row=6, column=0, padx=20, pady=(2, 2), sticky="ew")
+        self.entry_vat.grid(row=7, column=0, padx=20, pady=(2, 2), sticky="ew")
 
         self.btn_search = ctk.CTkButton(self.sidebar_frame, text="Search VIES (VAT)", command=self.lookup_vat, height=28,
                                         fg_color="#2A2D2E", border_width=2, border_color="#3B8ED0", text_color="#3B8ED0")
-        self.btn_search.grid(row=7, column=0, padx=20, pady=(2, 2), sticky="ew")
+        self.btn_search.grid(row=8, column=0, padx=20, pady=(2, 2), sticky="ew")
 
         self.entry_name = ctk.CTkEntry(self.sidebar_frame, placeholder_text="Client Name", height=28)
-        self.entry_name.grid(row=8, column=0, padx=20, pady=(2, 2), sticky="ew")
+        self.entry_name.grid(row=9, column=0, padx=20, pady=(2, 2), sticky="ew")
 
-        # --- ADDRESS SECTION ---
+        # Address
         self.entry_street = ctk.CTkEntry(self.sidebar_frame, placeholder_text="Street & Number", height=28)
-        self.entry_street.grid(row=9, column=0, padx=20, pady=(2, 2), sticky="ew")
+        self.entry_street.grid(row=10, column=0, padx=20, pady=(2, 2), sticky="ew")
 
         self.addr_frame = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
-        self.addr_frame.grid(row=10, column=0, padx=20, pady=(2, 2), sticky="ew")
+        self.addr_frame.grid(row=11, column=0, padx=20, pady=(2, 2), sticky="ew")
 
         self.entry_zip = ctk.CTkEntry(self.addr_frame, placeholder_text="Zip", width=60, height=28)
         self.entry_zip.pack(side="left", padx=(0, 5))
@@ -102,40 +109,44 @@ class ModernInvoiceApp(ctk.CTk):
                                             fg_color="#444", hover_color="#666")
         self.btn_addr_search.pack(side="left", padx=(5, 0))
 
-        # Optional Fields
+        # Contact Fields
         self.entry_phone = ctk.CTkEntry(self.sidebar_frame, placeholder_text="Phone (Optional)", height=28)
-        self.entry_phone.grid(row=11, column=0, padx=20, pady=(2, 2), sticky="ew")
+        self.entry_phone.grid(row=12, column=0, padx=20, pady=(2, 2), sticky="ew")
         
         self.entry_email = ctk.CTkEntry(self.sidebar_frame, placeholder_text="Email (Optional)", height=28)
-        self.entry_email.grid(row=12, column=0, padx=20, pady=(2, 2), sticky="ew")
+        self.entry_email.grid(row=13, column=0, padx=20, pady=(2, 2), sticky="ew")
+
+        # --- NEW: CLIENT IBAN ---
+        self.entry_iban = ctk.CTkEntry(self.sidebar_frame, placeholder_text="Client IBAN (Compte)", height=28)
+        self.entry_iban.grid(row=14, column=0, padx=20, pady=(2, 2), sticky="ew")
+
 
         # 3. Product Section
         self.lbl_prod = ctk.CTkLabel(self.sidebar_frame, text="Product Details", anchor="w")
-        self.lbl_prod.grid(row=13, column=0, padx=20, pady=(10, 0), sticky="w")
+        self.lbl_prod.grid(row=15, column=0, padx=20, pady=(10, 0), sticky="w")
 
-        # Product Name Override
+        # Product Name
         self.entry_product_name = ctk.CTkEntry(self.sidebar_frame, placeholder_text="Product Name", height=28)
         self.entry_product_name.insert(0, "CHOCOLATES")
-        self.entry_product_name.grid(row=14, column=0, padx=20, pady=(2, 2), sticky="ew")
+        self.entry_product_name.grid(row=16, column=0, padx=20, pady=(2, 2), sticky="ew")
 
-        # Pricing Logic Switch
+        # Pricing Mode
         self.pricing_mode = ctk.StringVar(value="weight")
         self.switch_price_mode = ctk.CTkSwitch(self.sidebar_frame, text="Manual Price / Override", command=self.toggle_price_mode, 
                                                variable=self.pricing_mode, onvalue="fixed", offvalue="weight")
-        self.switch_price_mode.grid(row=15, column=0, padx=20, pady=(5, 5), sticky="w")
+        self.switch_price_mode.grid(row=17, column=0, padx=20, pady=(5, 5), sticky="w")
 
-        # Quantity Input
+        # Inputs
         self.entry_qty = ctk.CTkEntry(self.sidebar_frame, placeholder_text="Quantity (Kg)", height=28)
-        self.entry_qty.grid(row=16, column=0, padx=20, pady=(2, 2), sticky="ew")
+        self.entry_qty.grid(row=18, column=0, padx=20, pady=(2, 2), sticky="ew")
         self.entry_qty.bind("<KeyRelease>", self.calculate_totals)
 
-        # Fixed Price Input
         self.entry_fixed_price = ctk.CTkEntry(self.sidebar_frame, placeholder_text="Total Price (€)", height=28)
         self.entry_fixed_price.bind("<KeyRelease>", self.calculate_totals)
         
-        # TVA Rate
+        # TVA
         self.frame_tva = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
-        self.frame_tva.grid(row=17, column=0, padx=20, pady=(2, 5), sticky="ew")
+        self.frame_tva.grid(row=19, column=0, padx=20, pady=(2, 5), sticky="ew")
         
         self.lbl_tva_rate = ctk.CTkLabel(self.frame_tva, text="TVA %:", width=50, anchor="w")
         self.lbl_tva_rate.pack(side="left")
@@ -148,7 +159,7 @@ class ModernInvoiceApp(ctk.CTk):
         # Generate Button
         self.btn_generate = ctk.CTkButton(self.sidebar_frame, text="GENERATE & SAVE", command=self.generate_invoice, 
                                           height=35, font=ctk.CTkFont(size=14, weight="bold"))
-        self.btn_generate.grid(row=18, column=0, padx=20, pady=(15, 20), sticky="ew")
+        self.btn_generate.grid(row=20, column=0, padx=20, pady=(15, 20), sticky="ew")
 
         # --- RIGHT MAIN AREA ---
         self.main_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
@@ -177,7 +188,6 @@ class ModernInvoiceApp(ctk.CTk):
         self.history_label = ctk.CTkLabel(self.history_header_frame, text="Invoice History", font=ctk.CTkFont(size=16, weight="bold"))
         self.history_label.pack(side="left", anchor="w")
 
-        # Sorting Dropdown
         self.sort_var = ctk.StringVar(value="Status (Unpaid First)")
         self.combo_sort = ctk.CTkOptionMenu(self.history_header_frame,
                                             values=["Status (Unpaid First)", "ID: Newest First", "ID: Oldest First"],
@@ -194,12 +204,12 @@ class ModernInvoiceApp(ctk.CTk):
         self.btn_open_dir.pack(fill="x", pady=(10, 0))
 
         self.load_history()
+        self.load_saved_clients() # Populate dropdown
         self.set_next_invoice_number()
 
     # --- LOGIC ---
 
     def center_window(self, width, height):
-        """Centers the window on the screen"""
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
         x = (screen_width / 2) - (width / 2)
@@ -210,13 +220,20 @@ class ModernInvoiceApp(ctk.CTk):
         self.conn = sqlite3.connect('factures_db.sqlite')
         self.c = self.conn.cursor()
         
+        # 1. Invoices Table
         self.c.execute('''CREATE TABLE IF NOT EXISTS factures
                           (id INTEGER PRIMARY KEY, date TEXT, client TEXT, vat TEXT, qty REAL, total REAL, filename TEXT, paid INTEGER DEFAULT 0)''')
         try:
             self.c.execute("ALTER TABLE factures ADD COLUMN paid INTEGER DEFAULT 0")
-            self.conn.commit()
         except sqlite3.OperationalError:
             pass
+
+        # 2. Clients Table (New)
+        self.c.execute('''CREATE TABLE IF NOT EXISTS clients
+                          (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                           name TEXT, vat TEXT UNIQUE, street TEXT, 
+                           zip TEXT, city TEXT, phone TEXT, email TEXT, iban TEXT)''')
+        
         self.conn.commit()
 
     def set_next_invoice_number(self):
@@ -240,15 +257,81 @@ class ModernInvoiceApp(ctk.CTk):
         btn_select = ctk.CTkButton(top, text="Select", command=set_date)
         btn_select.pack(pady=10)
 
+    # --- CLIENT MANAGEMENT ---
+
+    def save_client_to_db(self):
+        """Saves current client inputs to DB"""
+        name = self.entry_name.get().strip()
+        vat = self.entry_vat.get().strip()
+        if not name: return # Don't save empty clients
+
+        # Gather data
+        data = (
+            name, 
+            vat,
+            self.entry_street.get().strip(),
+            self.entry_zip.get().strip(),
+            self.entry_city.get().strip(),
+            self.entry_phone.get().strip(),
+            self.entry_email.get().strip(),
+            self.entry_iban.get().strip()
+        )
+
+        # Upsert logic: If VAT exists, update info. If not, insert new.
+        # SQLite doesn't have a simple UPSERT in older versions, so we try INSERT OR REPLACE if VAT is key
+        # But user might have no VAT. Let's use name check if VAT is empty.
+        
+        if vat:
+             # Use VAT as unique key
+            self.c.execute("""INSERT OR REPLACE INTO clients (name, vat, street, zip, city, phone, email, iban) 
+                              VALUES (?, ?, ?, ?, ?, ?, ?, ?)""", data)
+        else:
+            # Just insert (might create duplicates with same name but different ID, acceptable for individuals)
+            self.c.execute("""INSERT INTO clients (name, vat, street, zip, city, phone, email, iban) 
+                              VALUES (?, ?, ?, ?, ?, ?, ?, ?)""", data)
+            
+        self.conn.commit()
+        self.load_saved_clients() # Refresh dropdown
+
+    def load_saved_clients(self):
+        """Refreshes the dropdown with client names"""
+        self.c.execute("SELECT name FROM clients ORDER BY name ASC")
+        clients = [row[0] for row in self.c.fetchall()]
+        if not clients:
+            self.combo_clients.configure(values=["No Saved Clients"])
+        else:
+            self.combo_clients.configure(values=clients)
+
+    def on_client_select(self, choice):
+        """Fills inputs when a client is picked"""
+        if choice == "No Saved Clients" or choice == "Select Saved Client...": return
+
+        self.c.execute("SELECT vat, street, zip, city, phone, email, iban FROM clients WHERE name=?", (choice,))
+        result = self.c.fetchone()
+        
+        if result:
+            # Clear and Fill
+            self.entry_name.delete(0, tk.END); self.entry_name.insert(0, choice)
+            
+            self.entry_vat.delete(0, tk.END); self.entry_vat.insert(0, result[0])
+            self.entry_street.delete(0, tk.END); self.entry_street.insert(0, result[1])
+            self.entry_zip.delete(0, tk.END); self.entry_zip.insert(0, result[2])
+            self.entry_city.delete(0, tk.END); self.entry_city.insert(0, result[3])
+            self.entry_phone.delete(0, tk.END); self.entry_phone.insert(0, result[4])
+            self.entry_email.delete(0, tk.END); self.entry_email.insert(0, result[5])
+            self.entry_iban.delete(0, tk.END); self.entry_iban.insert(0, result[6])
+
+    # --- UI HELPERS ---
+
     def toggle_price_mode(self):
         if self.pricing_mode.get() == "fixed":
             self.entry_qty.grid_forget()
-            self.entry_fixed_price.grid(row=16, column=0, padx=20, pady=2, sticky="ew")
+            self.entry_fixed_price.grid(row=18, column=0, padx=20, pady=2, sticky="ew")
             self.entry_fixed_price.delete(0, tk.END)
             self.entry_fixed_price.focus()
         else:
             self.entry_fixed_price.grid_forget()
-            self.entry_qty.grid(row=16, column=0, padx=20, pady=2, sticky="ew")
+            self.entry_qty.grid(row=18, column=0, padx=20, pady=2, sticky="ew")
             self.entry_qty.delete(0, tk.END)
             self.entry_qty.focus()
         self.calculate_totals()
@@ -383,6 +466,7 @@ class ModernInvoiceApp(ctk.CTk):
         
         client_phone = self.entry_phone.get()
         client_email = self.entry_email.get()
+        client_iban = self.entry_iban.get()
         
         prod_name = self.entry_product_name.get().strip()
         if not prod_name: prod_name = "CHOCOLATES"
@@ -417,6 +501,9 @@ class ModernInvoiceApp(ctk.CTk):
         except sqlite3.IntegrityError:
             messagebox.showerror("Duplicate Error", f"Facture #{custom_id} ALREADY EXISTS.\n\nYou cannot create two invoices with the same number.\nPlease change the ID.")
             return
+            
+        # --- SAVE CLIENT FOR FUTURE ---
+        self.save_client_to_db()
 
         # --- PDF GENERATION ---
         pdf = FPDF()
@@ -438,7 +525,14 @@ class ModernInvoiceApp(ctk.CTk):
         pdf.cell(0, 5, client_name, ln=True)
         pdf.set_font("Arial", "", 10)
         pdf.multi_cell(0, 5, client_full_addr)
-        pdf.cell(0, 5, f"{client_vat}", ln=True)
+        
+        # Prefixed Format as requested
+        if client_vat:
+             pdf.cell(0, 5, f"TVA: {client_vat}", ln=True)
+        
+        if client_iban:
+            pdf.cell(0, 5, f"Compte: {client_iban}", ln=True)
+
         if client_phone: pdf.cell(0, 5, f"Tel: {client_phone}", ln=True)
         if client_email: pdf.cell(0, 5, f"Email: {client_email}", ln=True)
         pdf.ln(10)
@@ -505,7 +599,7 @@ class ModernInvoiceApp(ctk.CTk):
         
         self.load_history()
         self.set_next_invoice_number()
-        messagebox.showinfo("Success", f"Invoice #{custom_id} generated!")
+        messagebox.showinfo("Success", f"Invoice #{custom_id} generated!\nClient saved for next time.")
 
     def delete_invoice(self, inv_id):
         confirm = messagebox.askyesno("Confirm Delete", f"Delete invoice #{inv_id}?")
